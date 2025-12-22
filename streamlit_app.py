@@ -4,6 +4,42 @@ import pickle
 import os
 from pathlib import Path
 
+import sklearn
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Import sklearn BEFORE loading pickled models
+import sklearn
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+@st.cache_resource
+def load_model_data():
+    """Load pre-computed recommendation data"""
+    
+    files_to_download = {
+        'movie_data.pkl': 'https://github.com/iamctodd/movie-recommender/releases/download/v1.0.0/movie_data.pkl',
+        'similarity_matrix.pkl': 'https://github.com/iamctodd/movie-recommender/releases/download/v1.0.0/similarity_matrix.pkl',
+        'vectorizer.pkl': 'https://github.com/iamctodd/movie-recommender/releases/download/v1.0.0/vectorizer.pkl'
+    }
+    
+    try:
+        for filename, url in files_to_download.items():
+            if not os.path.exists(filename):
+                st.info(f"Downloading {filename}... (this may take a minute)")
+                urllib.request.urlretrieve(url, filename)
+        
+        with open('movie_data.pkl', 'rb') as f:
+            movies_df = pickle.load(f)
+        with open('similarity_matrix.pkl', 'rb') as f:
+            similarity_matrix = pickle.load(f)
+        with open('vectorizer.pkl', 'rb') as f:
+            vectorizer = pickle.load(f)
+        return movies_df, similarity_matrix, vectorizer
+    except Exception as e:
+        st.error(f"Error loading model data: {str(e)}")
+        st.stop()
+
 st.set_page_config(
     page_title="Movie Recommender",
     page_icon="🎬",
