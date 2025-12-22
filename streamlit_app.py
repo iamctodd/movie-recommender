@@ -79,18 +79,30 @@ with st.sidebar:
 @st.cache_resource
 def load_model_data():
     """Load pre-computed recommendation data"""
-    # Try to load from pickle files (pre-computed from notebook)
+    import urllib.request
+    import os
+    
+    files_to_download = {
+        'movie_data.pkl': 'https://github.com/iamctodd/movie-recommender/releases/download/v1.0.0/movie_data.pkl',
+        'similarity_matrix.pkl': 'https://github.com/iamctodd/movie-recommender/releases/download/v1.0.0/similarity_matrix.pkl',
+        'vectorizer.pkl': 'https://github.com/iamctodd/movie-recommender/releases/download/v1.0.0/vectorizer.pkl'
+    }
+    
     try:
-        with open('data/movie_data.pkl', 'rb') as f:
+        for filename, url in files_to_download.items():
+            if not os.path.exists(filename):
+                st.info(f"Downloading {filename}... (this may take a minute)")
+                urllib.request.urlretrieve(url, filename)
+        
+        with open('movie_data.pkl', 'rb') as f:
             movies_df = pickle.load(f)
-        with open('data/similarity_matrix.pkl', 'rb') as f:
+        with open('similarity_matrix.pkl', 'rb') as f:
             similarity_matrix = pickle.load(f)
-        with open('data/vectorizer.pkl', 'rb') as f:
+        with open('vectorizer.pkl', 'rb') as f:
             vectorizer = pickle.load(f)
         return movies_df, similarity_matrix, vectorizer
-    except FileNotFoundError as e:
-        st.error("⚠️ Model data files not found.")
-        st.info("Expected files in the same data folder: `movie_data.pkl`, `similarity_matrix.pkl`, `vectorizer.pkl`")
+    except Exception as e:
+        st.error(f"Error loading model data: {str(e)}")
         st.stop()
 
 # Load data
