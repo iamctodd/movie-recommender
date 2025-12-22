@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommender</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            color: #aaa;
+        }
+
+        .search-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .search-group {
+            display: grid;
+            grid-template-columns: 1fr auto 120px;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            padding: 0.75rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            width: 100%;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+        }
+
+        input[type="number"] {
+            padding: 0.75rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            width: 100%;
+            -moz-appearance: textfield;
+        }
+
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .search-label {
+            color: #666;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        button {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            color: #fff;
+            padding: 2rem;
+            display: none;
+            font-size: 1.1rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(0, 212, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #00d4ff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+            border-left: 4px solid #c33;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .recommendations {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .movie-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .movie-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 35px rgba(0, 212, 255, 0.2);
+        }
+
+        .movie-poster-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 150%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .movie-poster {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .movie-rating-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #00d4ff;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .movie-rating-badge.show {
+            display: block;
+        }
+
+        .movie-rank {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .movie-card-content {
+            padding: 1.5rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .movie-title {
+            font-size: 1.2rem;
+            color: #1a1a2e;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        .movie-meta {
+            font-size: 0.85rem;
+            color: #999;
+            margin-bottom: 1rem;
+        }
+
+        .similarity-score {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .similarity-label {
+            color: #666;
+            font-size: 0.85rem;
+            margin-right: 0.5rem;
+            font-weight: 600;
+            min-width: 80px;
+        }
+
+        .similarity-bar {
+            flex: 1;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .similarity-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff 0%, #0099ff 100%);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .similarity-pct {
+            color: #0099ff;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            font-size: 0.9rem;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .genres {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .genre-tag {
+            background: #f0f0f0;
+            color: #0099ff;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .overview {
+            font-size: 0.85rem;
+            color: #666;
+            line-height: 1.4;
+            flex-grow: 1;
+        }
+
+        .stats {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+
+        .stats.show {
+            display: block;
+        }
+
+        .stats h3 {
+            color: #1a1a2e;
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #f0f2f5 100%);
+            border-radius: 8px;
+            border-left: 4px solid #00d4ff;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            color: #0099ff;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            .search-group {
+                grid-template-columns: 1fr;
+            }
+
+            .recommendations {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 Movie Recommender</h1>
+            <p>Discover movies similar to ones you love</p>
+        </header>
+
+        <div class="search-section">
+            <div class="search-group">
+                <input type="text" id="movieInput" placeholder="Type a movie name..." autocomplete="off">
+                <label class="search-label">Recommendations:</label>
+                <input type="number" id="numRecommendations" min="1" max="20" value="5">
+            </div>
+            <button onclick="getRecommendations()">Get Recommendations</button>
+        </div>
+
+        <div class="error" id="errorMsg"></div>
+        <div class="loading" id="loading">
+            <span class="spinner"></span>Finding similar movies...
+        </div>
+
+        <div class="recommendations" id="recommendations"></div>
+        <div class="stats" id="stats"></div>
+    </div>
+
+    <script>
+        let allMovies = [];
+
+        window.addEventListener('DOMContentLoaded', loadMovies);
+
+        async function loadMovies() {
+            try {
+                const response = await fetch('/api/movies');
+                const data = await response.json();
+                allMovies = data.movies;
+                setupAutocomplete();
+            } catch (error) {
+                showError('Failed to load movies: ' + error.message);
+            }
+        }
+
+        function setupAutocomplete() {
+            const input = document.getElementById('movieInput');
+            
+            input.addEventListener('input', () => {
+                const value = input.value.toLowerCase();
+                if (value.length === 0) {
+                    hideSuggestions();
+                    return;
+                }
+                
+                const matches = allMovies.filter(movie => 
+                    movie.toLowerCase().includes(value)
+                ).slice(0, 8);
+                
+                if (matches.length > 0) {
+                    showSuggestions(matches);
+                } else {
+                    hideSuggestions();
+                }
+            });
+            
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') getRecommendations();
+            });
+        }
+
+        function showSuggestions(movies) {
+            let suggestionsDiv = document.getElementById('suggestions');
+            if (!suggestionsDiv) {
+                suggestionsDiv = document.createElement('div');
+                suggestionsDiv.id = 'suggestions';
+                suggestionsDiv.style.cssText = `
+                    position: absolute;
+                    background: white;
+                    border: 2px solid #e0e0e0;
+                    border-top: none;
+                    border-radius: 0 0 8px 8px;
+                    max-width: 400px;
+                    max-height: 250px;
+                    overflow-y: auto;
+                    z-index: 1000;
+                    margin-top: -4px;
+                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+                `;
+                document.querySelector('.search-group').parentElement.style.position = 'relative';
+                document.querySelector('.search-group').parentElement.appendChild(suggestionsDiv);
+            }
+            
+            suggestionsDiv.innerHTML = movies.map(movie => `
+                <div onclick="selectMovie('${escapeHtml(movie)}')" style="
+                    padding: 0.75rem 1rem;
+                    cursor: pointer;
+                    border-bottom: 1px solid #f0f0f0;
+                    font-size: 0.9rem;
+                " onmouseover="this.style.backgroundColor='#f5f5f5'" onmouseout="this.style.backgroundColor='white'">
+                    ${escapeHtml(movie)}
+                </div>
+            `).join('');
+            suggestionsDiv.style.display = 'block';
+        }
+
+        function hideSuggestions() {
+            const suggestionsDiv = document.getElementById('suggestions');
+            if (suggestionsDiv) {
+                suggestionsDiv.style.display = 'none';
+            }
+        }
+
+        function selectMovie(movie) {
+            document.getElementById('movieInput').value = movie;
+            hideSuggestions();
+        }
+
+        async function getRecommendations() {
+            const movieTitle = document.getElementById('movieInput').value.trim();
+            const numRecs = document.getElementById('numRecommendations').value;
+
+            if (!movieTitle) {
+                showError('Please enter a movie name');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+
+            try {
+                const response = await fetch('/api/recommend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        movie_title: movieTitle,
+                        num_recommendations: numRecs
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to get recommendations');
+                }
+
+                const data = await response.json();
+                displayRecommendations(data.recommendations);
+                displayStats(data.recommendations);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayRecommendations(recommendations) {
+            const container = document.getElementById('recommendations');
+            container.innerHTML = '';
+
+            recommendations.forEach((movie, index) => {
+                const card = document.createElement('div');
+                card.className = 'movie-card';
+                
+                const genres = movie.genres.split('|').map(g => g.trim()).filter(g => g);
+                const genreHTML = genres.length > 0 
+                    ? `<div class="genres">${genres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`
+                    : '';
+
+                const ratingBadge = movie.rating 
+                    ? `<div class="movie-rating-badge show">${(movie.rating).toFixed(1)} ⭐</div>`
+                    : '';
+
+                const releaseYear = movie.release_date ? ` (${movie.release_date.split('-')[0]})` : '';
+                const overview = movie.overview ? `<p class="overview">${movie.overview.substring(0, 100)}...</p>` : '';
+
+                card.innerHTML = `
+                    <div class="movie-poster-container">
+                        <img src="${movie.poster_url || 'https://via.placeholder.com/342x513/1a1a2e/ffffff?text=No+Poster'}" 
+                             alt="${movie.title}" 
+                             class="movie-poster"
+                             onerror="this.src='https://via.placeholder.com/342x513/1a1a2e/ffffff?text=${movie.title.replace(/\s+/g, '+')}'">
+                        <div class="movie-rank">#${index + 1}</div>
+                        ${ratingBadge}
+                    </div>
+                    <div class="movie-card-content">
+                        <div class="movie-title">${escapeHtml(movie.title)}</div>
+                        <div class="movie-meta">Genre Match ${movie.similarity_pct}%</div>
+                        <div class="similarity-score">
+                            <div class="similarity-bar">
+                                <div class="similarity-fill" style="width: ${movie.similarity_pct}%"></div>
+                            </div>
+                            <span class="similarity-pct">${movie.similarity_pct}%</span>
+                        </div>
+                        ${genreHTML}
+                        ${overview}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function displayStats(recommendations) {
+            const stats = document.getElementById('stats');
+            const similarities = recommendations.map(r => r.similarity);
+            const avg = (similarities.reduce((a, b) => a + b, 0) / similarities.length * 100).toFixed(1);
+            const max = Math.max(...similarities) * 100;
+            const min = Math.min(...similarities) * 100;
+
+            stats.innerHTML = `
+                <h3>📊 Recommendation Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Average Similarity</div>
+                        <div class="stat-value">${avg}%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Max Similarity</div>
+                        <div class="stat-value">${max.toFixed(1)}%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Min Similarity</div>
+                        <div class="stat-value">${min.toFixed(1)}%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Results Shown</div>
+                        <div class="stat-value">${recommendations.length}</div>
+                    </div>
+                </div>
+            `;
+            stats.classList.add('show');
+        }
+
+        function showError(msg) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = msg;
+            errorDiv.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('errorMsg').classList.remove('show');
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('show', show);
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>
