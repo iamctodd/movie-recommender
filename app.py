@@ -235,4 +235,4 @@ def get_movies():
     return jsonify({'movies': movies, 'count': len(movies)})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) 
