@@ -186,11 +186,12 @@
             transition: transform 0.3s, box-shadow 0.3s;
             display: flex;
             flex-direction: column;
+            cursor: pointer;
         }
 
         .movie-card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 12px 35px rgba(0, 212, 255, 0.2);
+            box-shadow: 0 12px 35px rgba(0, 212, 255, 0.3);
         }
 
         .movie-poster-container {
@@ -416,12 +417,18 @@
     </div>
 
     <script>
+        // TMDB Configuration
+        const TMDB_API_KEY = "ba06236e32bcaff62fbbc545f8666f9d";
+        const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+        const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
+        
         let allMovies = [];
 
         window.addEventListener('DOMContentLoaded', loadMovies);
 
         async function loadMovies() {
             try {
+                // Call Flask endpoint directly (or Netlify function for deployed version)
                 const response = await fetch('/api/movies');
                 const data = await response.json();
                 allMovies = data.movies;
@@ -504,6 +511,37 @@
             hideSuggestions();
         }
 
+        async function getTMDBData(movieTitle) {
+            // Fetch TMDB data for a movie
+            try {
+                // Clean the title: remove year in parentheses
+                let cleanTitle = movieTitle.replace(/\s*\(\d{4}\)\s*$/, '');
+                
+                console.log(`Fetching TMDB data for: "${cleanTitle}" (original: "${movieTitle}")`);
+                const response = await fetch(
+                    `${TMDB_BASE_URL}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(cleanTitle)}&include_adult=false`
+                );
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    const movie = data.results[0];
+                    console.log(`✓ Found: ${movie.title} (ID: ${movie.id})`);
+                    return {
+                        id: movie.id,
+                        poster_path: movie.poster_path,
+                        overview: movie.overview,
+                        release_date: movie.release_date,
+                        rating: movie.vote_average
+                    };
+                } else {
+                    console.warn(`✗ No results for: ${cleanTitle}`);
+                }
+            } catch (error) {
+                console.error(`✗ TMDB error for "${movieTitle}":`, error);
+            }
+            return { id: null, poster_path: null, overview: null, release_date: null, rating: null };
+        }
+
         async function getRecommendations() {
             const movieTitle = document.getElementById('movieInput').value.trim();
             const numRecs = document.getElementById('numRecommendations').value;
@@ -517,6 +555,7 @@
             hideError();
 
             try {
+                // Call Flask endpoint (or Netlify function for deployed version)
                 const response = await fetch('/api/recommend', {
                     method: 'POST',
                     headers: {
@@ -534,6 +573,18 @@
                 }
 
                 const data = await response.json();
+                
+                // Fetch TMDB data for each recommendation
+                for (let rec of data.recommendations) {
+                    const tmdbData = await getTMDBData(rec.title);
+                    rec.poster_url = tmdbData.poster_path ? `${TMDB_IMAGE_BASE}${tmdbData.poster_path}` : null;
+                    rec.overview = tmdbData.overview;
+                    rec.release_date = tmdbData.release_date;
+                    rec.rating = tmdbData.rating;
+                    // Add TMDB movie URL
+                    rec.tmdb_url = tmdbData.id ? `https://www.themoviedb.org/movie/${tmdbData.id}` : null;
+                }
+                
                 displayRecommendations(data.recommendations);
                 displayStats(data.recommendations);
             } catch (error) {
@@ -548,8 +599,20 @@
             container.innerHTML = '';
 
             recommendations.forEach((movie, index) => {
-                const card = document.createElement('div');
+                const card = document.createElement('a');
                 card.className = 'movie-card';
+                
+                // Only make it a link if we have a TMDB URL
+                if (movie.tmdb_url) {
+                    card.href = movie.tmdb_url;
+                    card.target = '_blank';
+                    card.rel = 'noopener noreferrer';
+                } else {
+                    card.href = '#';
+                    card.onclick = (e) => e.preventDefault();
+                }
+                card.style.textDecoration = 'none';
+                card.style.color = 'inherit';
                 
                 const genres = movie.genres.split('|').map(g => g.trim()).filter(g => g);
                 const genreHTML = genres.length > 0 
@@ -560,7 +623,6 @@
                     ? `<div class="movie-rating-badge show">${(movie.rating).toFixed(1)} ⭐</div>`
                     : '';
 
-                const releaseYear = movie.release_date ? ` (${movie.release_date.split('-')[0]})` : '';
                 const overview = movie.overview ? `<p class="overview">${movie.overview.substring(0, 100)}...</p>` : '';
 
                 card.innerHTML = `
@@ -568,7 +630,7 @@
                         <img src="${movie.poster_url || 'https://via.placeholder.com/342x513/1a1a2e/ffffff?text=No+Poster'}" 
                              alt="${movie.title}" 
                              class="movie-poster"
-                             onerror="this.src='https://via.placeholder.com/342x513/1a1a2e/ffffff?text=${movie.title.replace(/\s+/g, '+')}'">
+                             onerror="this.src='https://via.placeholder.com/342x513/1a1a2e/ffffff?text=No+Image'">
                         <div class="movie-rank">#${index + 1}</div>
                         ${ratingBadge}
                     </div>
