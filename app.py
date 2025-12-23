@@ -5,12 +5,48 @@ import numpy as np
 import os
 import requests
 from functools import lru_cache
+import sys
 
 app = Flask(__name__)
 
 # TMDB API Configuration
 TMDB_API_KEY = "ba06236e32bcaff62fbbc545f8666f9d"
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
+
+def ensure_data_files():
+    """Download pickle files if they don't exist"""
+    data_dir = 'data'
+    os.makedirs(data_dir, exist_ok=True)
+    
+    files_needed = {
+        'movie_data.pkl': 'https://github.com/iamctodd/movie-recommender/releases/download/v1.0.0/movie_data.pkl',
+        'similarity_matrix.pkl': 'https://github.com/iamctodd/movie-recommender/releases/download/v1.0.0/similarity_matrix.pkl',
+        'vectorizer.pkl': 'https://github.com/iamctodd/movie-recommender/releases/download/v1.0.0/vectorizer.pkl'
+    }
+    
+    for filename, url in files_needed.items():
+        filepath = os.path.join(data_dir, filename)
+        
+        if not os.path.exists(filepath):
+            print(f"⬇️  Downloading {filename}...")
+            try:
+                response = requests.get(url, timeout=300)
+                response.raise_for_status()
+                
+                with open(filepath, 'wb') as f:
+                    f.write(response.content)
+                
+                file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
+                print(f"✓ Downloaded {filename} ({file_size_mb:.1f} MB)")
+            except Exception as e:
+                print(f"✗ Failed to download {filename}: {e}")
+                print(f"  Try uploading {filename} manually to a GitHub release")
+                return False
+        else:
+            file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
+            print(f"✓ Found {filename} ({file_size_mb:.1f} MB)")
+    
+    return True
 
 # Load model data
 def load_model_data():
@@ -22,14 +58,23 @@ def load_model_data():
     
     return movies_df, similarity_matrix
 
+# Ensure files exist on startup
+print("Checking for data files...")
+if not ensure_data_files():
+    print("ERROR: Could not download required data files!")
+    print("Please upload pickle files to GitHub releases or commit them manually")
+    sys.exit(1)
+
 # Cache the data on startup
 try:
     movies_df, similarity_matrix = load_model_data()
     print(f"✓ Loaded {len(movies_df)} movies")
 except FileNotFoundError as e:
     print(f"Error loading model data: {e}")
-    movies_df = None
-    similarity_matrix = None
+    sys.exit(1)
+except Exception as e:
+    print(f"Error loading model data: {e}")
+    sys.exit(1)
 
 @lru_cache(maxsize=500)
 def get_tmdb_data(movie_title):
