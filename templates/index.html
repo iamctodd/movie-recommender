@@ -372,6 +372,90 @@
             margin-top: 0.5rem;
         }
 
+        .share-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+
+        .share-section.show {
+            display: block;
+        }
+
+        .share-section h3 {
+            color: #1a1a2e;
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+        }
+
+        .share-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .share-btn {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .share-btn:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .share-btn.link-btn {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+            color: white;
+            border: none;
+        }
+
+        .share-btn.link-btn:hover {
+            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .share-btn.text-btn {
+            color: #666;
+        }
+
+        .share-btn.text-btn:hover {
+            color: #0099ff;
+        }
+
+        .share-feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f0f0f0;
+            border-radius: 8px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .share-feedback.show {
+            display: block;
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
         @media (max-width: 768px) {
             header h1 {
                 font-size: 1.8rem;
@@ -414,6 +498,18 @@
 
         <div class="recommendations" id="recommendations"></div>
         <div class="stats" id="stats"></div>
+        <div class="share-section" id="shareSection">
+            <h3>📤 Share These Recommendations</h3>
+            <div class="share-buttons">
+                <button class="share-btn link-btn" onclick="shareLink()">
+                    🔗 Copy Share Link
+                </button>
+                <button class="share-btn text-btn" onclick="shareAsText()">
+                    📋 Copy as Text
+                </button>
+            </div>
+            <div class="share-feedback" id="shareFeedback"></div>
+        </div>
     </div>
 
     <script>
@@ -424,7 +520,20 @@
         
         let allMovies = [];
 
-        window.addEventListener('DOMContentLoaded', loadMovies);
+        window.addEventListener('DOMContentLoaded', function() {
+            loadMovies();
+            
+            // Check for movie query parameter
+            const params = new URLSearchParams(window.location.search);
+            const movieParam = params.get('movie');
+            
+            if (movieParam) {
+                setTimeout(() => {
+                    document.getElementById('movieInput').value = decodeURIComponent(movieParam);
+                    getRecommendations();
+                }, 500); // Wait for movies to load first
+            }
+        });
 
         async function loadMovies() {
             try {
@@ -648,6 +757,89 @@
                     </div>
                 `;
                 container.appendChild(card);
+            });
+        }
+
+        function displayStats(recommendations) {
+            const stats = document.getElementById('stats');
+            const similarities = recommendations.map(r => r.similarity);
+            const avg = (similarities.reduce((a, b) => a + b, 0) / similarities.length * 100).toFixed(1);
+            const max = Math.max(...similarities) * 100;
+            const min = Math.min(...similarities) * 100;
+
+            stats.innerHTML = `
+                <h3>📊 Recommendation Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Average Similarity</div>
+                        <div class="stat-value">${avg}%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Max Similarity</div>
+                        <div class="stat-value">${max.toFixed(1)}%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Min Similarity</div>
+                        <div class="stat-value">${min.toFixed(1)}%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Results Shown</div>
+                        <div class="stat-value">${recommendations.length}</div>
+                    </div>
+                </div>
+            `;
+            stats.classList.add('show');
+            
+            // Show share section
+            document.getElementById('shareSection').classList.add('show');
+            
+            // Store current movie and recommendations for sharing
+            window.currentMovie = document.getElementById('movieInput').value.trim();
+            window.currentRecommendations = recommendations;
+        }
+
+        function shareLink() {
+            const movie = window.currentMovie;
+            const encodedMovie = encodeURIComponent(movie);
+            const shareUrl = `${window.location.origin}${window.location.pathname}?movie=${encodedMovie}`;
+            
+            copyToClipboard(shareUrl, 'Link copied! Share it with friends.');
+        }
+
+        function shareAsText() {
+            const movie = window.currentMovie;
+            const recs = window.currentRecommendations;
+            
+            let text = `🎬 Movie Recommendations for "${movie}"\n\n`;
+            
+            recs.forEach((rec, index) => {
+                text += `${index + 1}. ${rec.title}\n`;
+                text += `   Similarity: ${rec.similarity_pct}%\n`;
+                if (rec.genres) {
+                    const genres = rec.genres.split('|').map(g => g.trim()).join(', ');
+                    text += `   Genres: ${genres}\n`;
+                }
+                text += `\n`;
+            });
+            
+            text += `Found on: Movie Recommender\n`;
+            text += `https://movie-reco.up.railway.app/`;
+            
+            copyToClipboard(text, 'Recommendations copied as text!');
+        }
+
+        function copyToClipboard(text, message) {
+            navigator.clipboard.writeText(text).then(() => {
+                const feedback = document.getElementById('shareFeedback');
+                feedback.textContent = message;
+                feedback.classList.add('show');
+                
+                setTimeout(() => {
+                    feedback.classList.remove('show');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard. Please try again.');
             });
         }
 
