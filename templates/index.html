@@ -618,6 +618,10 @@
         function selectMovie(movie) {
             document.getElementById('movieInput').value = movie;
             hideSuggestions();
+            
+            // Update URL to reflect the selected movie
+            const encoded = encodeURIComponent(movie);
+            window.history.pushState({movie: movie}, '', `?movie=${encoded}`);
         }
 
         async function getTMDBData(movieTitle) {
@@ -659,6 +663,10 @@
                 showError('Please enter a movie name');
                 return;
             }
+
+            // Update URL to reflect current search
+            const encoded = encodeURIComponent(movieTitle);
+            window.history.pushState({movie: movieTitle}, '', `?movie=${encoded}`);
 
             showLoading(true);
             hideError();
